@@ -41,8 +41,8 @@ jobs:
   deploy:
     name: Deploy on server (self-hosted runner)
     needs: [test-and-build]
-    if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, prod, compose]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, prod, compose]   # change to "self-hosted" if labels don't exist
     steps:
       - name: Checkout
         uses: actions/checkout@v4
