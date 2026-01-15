@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DevOps Task App</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <main class="container">
+    <h1>Simple Web App with Persistence</h1>
+    <p class="muted">Submit a message. The last 5 submissions are stored in Postgres and persist across restarts.</p>
+
+    <form method="post" action="/submit" class="card">
+      <label for="text">Your text</label>
+      <input id="text" name="text" type="text" placeholder="Type something..." required maxlength="500"/>
+      <button type="submit">Submit</button>
+    </form>
+
+    <section class="card">
+      <h2>Last 5 submissions</h2>
+      {% if submissions and submissions|length > 0 %}
+        <ol class="list">
+          {% for s in submissions %}
+            <li>
+              <div class="item">
+                <div class="text">{{ s.text }}</div>
+                <div class="meta">{{ s.created_at }}</div>
+              </div>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="muted">No submissions yet.</p>
+      {% endif %}
+    </section>
+
+    <footer class="footer">
+      <span class="muted">Health: <code>/healthz</code> · Metrics: <code>/metrics</code></span>
+    </footer>
+  </main>
+</body>
+</html>

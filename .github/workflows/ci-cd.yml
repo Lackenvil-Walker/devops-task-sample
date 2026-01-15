@@ -1,0 +1,73 @@
+name: CI-CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Build image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: devops-task:ci
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test-and-build]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy over SSH (docker compose)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            mkdir -p ${{ secrets.APP_DIR }}
+            if [ ! -d "${{ secrets.APP_DIR }}/.git" ]; then
+              git clone ${{ secrets.REPO_SSH_URL }} ${{ secrets.APP_DIR }}
+            fi
+            cd ${{ secrets.APP_DIR }}
+            git fetch --all
+            git reset --hard origin/main
+
+            # Infra (external docker network + volumes)
+            cd infra/terraform
+            terraform init -input=false
+            terraform apply -auto-approve -input=false
+            cd ../..
+
+            # Deploy
+            docker compose up -d --build
+            docker image prune -f
